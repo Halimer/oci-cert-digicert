@@ -118,9 +118,10 @@ def create_signer(file_location, config_profile, is_instance_principals, is_dele
 
 class DigiCertTLM:
 
-    def __init__(self):
+    def __init__(self,tag_name='DigiCertTLM'):
        self.__digicert_tlm_server = os.environ.get('DigiCertTLMServer')
        self.__digicert_tlm_api_key = os.environ.get('DigiCertTLMAPIKey')
+       self.__oci_tag_name = tag_name
        self.__digicert_tlm_url = self.__digicert_tlm_server + "/mpki/api/v1/certificate-search"
        self.__tlm_certificates = []
     
@@ -130,6 +131,9 @@ class DigiCertTLM:
         else:
             return self.__query_certificates_from_tlm()
     
+    def get_get_oci_tag_name(self):
+        return self.__oci_tag_name
+
     def __query_certificates_from_tlm(self):
         headers = { 
             'x-api-key' : self.__digicert_tlm_api_key,
@@ -138,14 +142,12 @@ class DigiCertTLM:
         try:
             response = requests.request("GET",self.__digicert_tlm_url, headers=headers,data={})
             response.raise_for_status()
-            # access JSOn content
+            # access JSON content
             jsonResponse = response.json()
-            print("Entire JSON response")
-            # print(jsonResponse['items'])
+
             for seat in jsonResponse['items']:
-                print(seat)
                 self.__tlm_certificates.append(seat)
-            return self
+            return self.__tlm_certificates
         except HTTPError as http_err:
             print(f'HTTP error occurred: {http_err}')
         except Exception as err:
@@ -184,8 +186,6 @@ class OCICertificates:
             for region in regions:
                 record = oci.util.to_dict(region)
                 self.__regions[record['region_name']] = record
-            print(self.__regions)
-            # return
 
         except Exception as e:
             raise RuntimeError("Failed to get identity information." + str(e.args))
@@ -229,24 +229,21 @@ class OCICertificates:
                 cert_compartments[certificate.compartment_id] = certificate.compartment_id
 
             for compartment in cert_compartments:
-                print(compartment)
                 certs = oci.pagination.list_call_get_all_results(
                     region_values['certificate_client'].list_certificates,
                     compartment_id=compartment).data
                 for cert in certs:
                     record = oci.util.to_dict(cert)
                     self.__oci_certificates.append(cert)
-        print(f"Found {len(self.__oci_certificates)}")
+        print(f"Found a total of {len(self.__oci_certificates)} in OCI")
 
 
     def __find_oci_certificates_near_expiration(self):
         for cert in self.__oci_certificates:
             if cert.current_version_summary.validity and cert.current_version_summary.validity.time_of_validity_not_after <= self.__cert_key_time_max_datetime:
                     self.__oci_certificates_near_expiration.append(cert)
-                    print(cert.name)
-                    print(cert.current_version_summary.validity.time_of_validity_not_after)
-                    print(cert.current_version_summary.serial_number)
-        print(f"Certificates near expiry {len(self.__oci_certificates_near_expiration)}")
+        print(f"Found {len(self.__oci_certificates_near_expiration)} OCI Certificates near expiry ")
+    
     ##########################################################################
     # Return All certificates in the tenancy
     ##########################################################################
@@ -265,12 +262,18 @@ start_time = time.time()
 start_datetime = datetime.datetime.now().replace(tzinfo=pytz.UTC)
 
 tlm_certs = DigiCertTLM()
-tlm_certs.get_certificates_from_tlm() 
+tlm_managed_certs = tlm_certs.get_certificates_from_tlm()
 
-
-config, signer = create_signer("","DEFAULT",False,False,False)
+config, signer = create_signer("","ociateam",False,False,False)
 
 oci_certs = OCICertificates(config=config, signer=signer)
+oci_managed_certs = oci_certs.get_oci_certificates()
+oci_certificates_near_expiration = oci_certs.get_oci_certificates_near_expiration()
+
+for cert in tlm_managed_certs:
+    for oci_cert in oci_certificates_near_expiration:
+        if oci_cert.freeform_tags and tlm_certs.get_get_oci_tag_name() in oci_cert.freeform_tags:
+            print(f'This OCI is managed in TLM.  The TLM serial number is: {oci_cert.freeform_tags[tlm_certs.get_get_oci_tag_name()]}')
 
 
 print("--- %s seconds ---" % (time.time() - start_time))
