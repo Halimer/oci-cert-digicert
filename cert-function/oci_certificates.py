@@ -7,6 +7,14 @@ import requests
 from requests.exceptions import HTTPError
 
 
+def error_wrapper(func):
+    def error_handler(*args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        
+        except Exception as e:
+            raise RuntimeError(f'Error in {func.__name__}:  + {str(e.args)}')
+    return error_handler
 ##########################################################################
 # Create signer for Authentication
 # Input - config_profile and is_instance_principals and is_delegation_token
@@ -256,24 +264,61 @@ class OCICertificates:
     def get_oci_certificates_near_expiration(self):
         return self.__oci_certificates_near_expiration
     
-   
+    ##########################################################################
+    # Return All certificates in the tenancy near expiry
+    ##########################################################################
+    def add_new_oci_imported_certificate(self, compartment_id, name, cert_chain, certificate_pem, private_key_pem):
+        new_cert = oci.certificates_management.models.CreateCertificateByImportingConfigDetails(
+            
+            cert_chain_pem=cert_chain,
+            certificate_pem=certificate_pem,
+            private_key_pem=private_key_pem)
+                 
+        # fu = oci.certificates_management.models.CreateCertificateDetails(
+        #     create_certificate_details=new_cert
+        # )
+        response = self.__regions['us-ashburn-1']['certificate_client'].create_certificate(
+            oci.certificates_management.models.CreateCertificateDetails(
+                compartment_id=compartment_id,
+                name=name,
+                certificate_config=new_cert
+                ))
+
+        
+        print(response.data)
+        return response
+
+
 
 start_time = time.time()
 start_datetime = datetime.datetime.now().replace(tzinfo=pytz.UTC)
 
-tlm_certs = DigiCertTLM()
-tlm_managed_certs = tlm_certs.get_certificates_from_tlm()
+# tlm_certs = DigiCertTLM()
+# tlm_managed_certs = tlm_certs.get_certificates_from_tlm()
 
 config, signer = create_signer("","ociateam",False,False,False)
 
 oci_certs = OCICertificates(config=config, signer=signer)
-oci_managed_certs = oci_certs.get_oci_certificates()
-oci_certificates_near_expiration = oci_certs.get_oci_certificates_near_expiration()
+# oci_managed_certs = oci_certs.get_oci_certificates()
+# oci_certificates_near_expiration = oci_certs.get_oci_certificates_near_expiration()
+oci_certs.add_new_oci_imported_certificate(
+    name="testing",
+    compartment_id="ocid1.compartment.oc1..aaaaaaaawlfypwpntj6ftt3kk2jacwbzyuv6tepfmbdwimizkkqo4s5xw25q",
+    cert_chain=cert_chain,
+    certificate_pem=cert_pem,
+    private_key_pem=private_pem
+)
 
-for cert in tlm_managed_certs:
-    for oci_cert in oci_certificates_near_expiration:
-        if oci_cert.freeform_tags and tlm_certs.get_get_oci_tag_name() in oci_cert.freeform_tags:
-            print(f'This OCI is managed in TLM.  The TLM serial number is: {oci_cert.freeform_tags[tlm_certs.get_get_oci_tag_name()]}')
+# for cert in oci_managed_certs:
+#     print(cert.name)
 
+# for cert in tlm_managed_certs:
+#     for oci_cert in oci_certificates_near_expiration:
+#         if oci_cert.freeform_tags and tlm_certs.get_get_oci_tag_name() in oci_cert.freeform_tags:
+#             print(f'This OCI is managed in TLM.  The TLM serial number is: {oci_cert.freeform_tags[tlm_certs.get_get_oci_tag_name()]}')
+
+
+oci_certs.add_new_oci_certificate_bundle(compartment_id="ocid1.compartment.oc1..aaaaaaaawlfypwpntj6ftt3kk2jacwbzyuv6tepfmbdwimizkkqo4s5xw25q", 
+                                         name="HelloOCI")
 
 print("--- %s seconds ---" % (time.time() - start_time))
