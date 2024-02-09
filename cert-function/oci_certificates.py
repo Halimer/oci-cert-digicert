@@ -135,6 +135,18 @@ class OCICertificates:
                     self.__oci_certificates_near_expiration.append(cert)
         print(f"Found {len(self.__oci_certificates_near_expiration)} OCI Certificates near expiry ")
     
+
+    def get_oci_certificates_with_cname(self, cname):
+        results = []
+        for cert in self.__oci_certificates:
+            if cert.subject:
+                if cname == cert.subject.common_name:
+                    results.append(oci.util.to_dict(cert))
+
+        print(f"Found {len(results)} with cname {cname}")
+        return results    
+    
+
     ##########################################################################
     # Return All certificates in the tenancy
     ##########################################################################
@@ -167,7 +179,7 @@ class OCICertificates:
         return response.data
     
     ##########################################################################
-    # Return Add new certificate takes, region, comp,name and cert details
+    # Update certificate takes, certificate id and cert details
     ##########################################################################
     def update_oci_imported_certificate(self, certificate_id, region, cert_chain, certificate_pem, private_key_pem):
         updated_cert = oci.certificates_management.models.UpdateCertificateByImportingConfigDetails(
