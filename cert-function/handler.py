@@ -125,15 +125,31 @@ oci_certs = OCICertificates(config=config, signer=signer)
 # oci_certificates_near_expiration = oci_certs.get_oci_certificates_near_expiration()
 
 certificates_files = Certificate_Files()
-certificate_json = certificates_files.get_certificates('/Users/hammer/Documents/GitHub/oci-cert-digicert/cert-function/')
+certificate_json = certificates_files.get_certificates(directory='/Users/hammer/Documents/GitHub/oci-cert-digicert/cert-function/')
 print(certificate_json)
-
-oci_certs.add_new_oci_imported_certificate(
-    name="testing1",
+response = oci_certs.add_new_oci_imported_certificate(
+    name="testing4",
     compartment_id="ocid1.compartment.oc1..aaaaaaaawlfypwpntj6ftt3kk2jacwbzyuv6tepfmbdwimizkkqo4s5xw25q",
+    region="us-ashburn-1",
     cert_chain=certificate_json['cert_chain'],
     certificate_pem=certificate_json['certificate_pem'],
     private_key_pem=certificate_json['private_key_pem']
 )
+print("*" * 80)
+print(response)
+print("*" * 80)
+certificate_id = 'ocid1.certificate.oc1.iad.amaaaaaac3adhhqasr5p5a3h4ita3ykc5bhrcz2xtiyklzpxwzv42kzqc3ea'
+
+response = oci_certs.update_oci_imported_certificate(
+    certificate_id=certificate_id,
+    region="us-ashburn-1",
+    cert_chain=certificate_json['cert_chain'],
+    certificate_pem=certificate_json['certificate_pem'],
+    private_key_pem=certificate_json['private_key_pem']
+)
+print("*" * 80)
+print(response)
+print("*" * 80)
+
 
 print("--- %s seconds ---" % (time.time() - start_time))

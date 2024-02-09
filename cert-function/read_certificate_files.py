@@ -1,11 +1,11 @@
 import os
 from pathlib import Path
- 
+import json
+
 class Certificate_Files:
 
     def __init__(self):
         pass
-
 
     ####################################################################################
     # Input: filepath
@@ -15,11 +15,10 @@ class Certificate_Files:
     def __get_certs_in_directory(self,filepath):
         files_list = [f for f in os.listdir(filepath) if f.endswith('.pem')]
         return files_list
-
+    
     def __covert_cert_to_str(self,file_name):
         cert_file = Path(file_name).read_text()
-        str_cert = cert_file.encode("unicode_escape").decode("utf-8")
-        return str_cert
+        return cert_file
 
     def get_certificates(self, directory):
         self.__directory = directory
@@ -31,9 +30,11 @@ class Certificate_Files:
                 self.__privkey = self.__covert_cert_to_str(self.__directory + file)
             if 'chain' in file:
                 self.__chain = self.__covert_cert_to_str(self.__directory + file)
-        return {
+        
+        cert_dict = {
             "cert_chain" : self.__chain,
             "certificate_pem" : self.__cert,
-            "private_key_pem" : self.__privkey
-        }
+            "private_key_pem" : self.__privkey}
+        
+        return cert_dict
     

@@ -6,19 +6,6 @@ import os
 import requests
 from requests.exceptions import HTTPError
 
-
-def error_wrapper(func):
-    def error_handler(*args, **kwargs):
-        try:
-            func(*args, **kwargs)
-
-        except Exception as e:
-            print("Handled")
-            print("Error in " + func.__name__ + ": " + str(e.args))
-            return None
-    
-    return error_handler
-
 class DigiCertTLM:
 
     def __init__(self,tag_name='DigiCertTLM'):
@@ -142,7 +129,6 @@ class OCICertificates:
                     self.__oci_certificates.append(cert)
         print(f"Found a total of {len(self.__oci_certificates)} in OCI")
 
-
     def __find_oci_certificates_near_expiration(self):
         for cert in self.__oci_certificates:
             if cert.current_version_summary.validity and cert.current_version_summary.validity.time_of_validity_not_after <= self.__cert_key_time_max_datetime:
@@ -162,38 +148,37 @@ class OCICertificates:
         return self.__oci_certificates_near_expiration
     
     ##########################################################################
-    # Return All certificates in the tenancy near expiry
+    # Return new certificate data 
+    # Takes: Add new certificate takes, region, comp,name and cert details
+    # The read_certificates_files provides a JSON with the 3 required fields
     ##########################################################################
-    def add_new_oci_imported_certificate(self, compartment_id, name, cert_chain, certificate_pem, private_key_pem):
+    def add_new_oci_imported_certificate(self, name, compartment_id, region, cert_chain, certificate_pem, private_key_pem):
         new_cert = oci.certificates_management.models.CreateCertificateByImportingConfigDetails(
-            
             cert_chain_pem=cert_chain,
             certificate_pem=certificate_pem,
             private_key_pem=private_key_pem)
                  
-        # fu = oci.certificates_management.models.CreateCertificateDetails(
-        #     create_certificate_details=new_cert
-        # )
-        response = self.__regions['us-ashburn-1']['certificate_client'].create_certificate(
+        response = self.__regions[region]['certificate_client'].create_certificate(
             oci.certificates_management.models.CreateCertificateDetails(
                 compartment_id=compartment_id,
                 name=name,
                 certificate_config=new_cert
-                ))
-
+                ))       
+        return response.data
+    
+    ##########################################################################
+    # Return Add new certificate takes, region, comp,name and cert details
+    ##########################################################################
+    def update_oci_imported_certificate(self, certificate_id, region, cert_chain, certificate_pem, private_key_pem):
+        updated_cert = oci.certificates_management.models.UpdateCertificateByImportingConfigDetails(
+            cert_chain_pem=cert_chain,
+            certificate_pem=certificate_pem,
+            private_key_pem=private_key_pem)
+                 
+        response = self.__regions[region]['certificate_client'].update_certificate(
+                certificate_id=certificate_id,
+                update_certificate_details=oci.certificates_management.models.UpdateCertificateDetails(
+                certificate_config=updated_cert))       
         
-        print(response.data)
-        return response
-
-
-
-# for cert in oci_managed_certs:
-#     print(cert.name)
-
-# for cert in tlm_managed_certs:
-#     for oci_cert in oci_certificates_near_expiration:
-#         if oci_cert.freeform_tags and tlm_certs.get_get_oci_tag_name() in oci_cert.freeform_tags:
-#             print(f'This OCI is managed in TLM.  The TLM serial number is: {oci_cert.freeform_tags[tlm_certs.get_get_oci_tag_name()]}')
-
-
+        return response.data
 
