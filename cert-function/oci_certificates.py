@@ -11,118 +11,13 @@ def error_wrapper(func):
     def error_handler(*args, **kwargs):
         try:
             func(*args, **kwargs)
-        
+
         except Exception as e:
-            raise RuntimeError(f'Error in {func.__name__}:  + {str(e.args)}')
+            print("Handled")
+            print("Error in " + func.__name__ + ": " + str(e.args))
+            return None
+    
     return error_handler
-##########################################################################
-# Create signer for Authentication
-# Input - config_profile and is_instance_principals and is_delegation_token
-# Output - config and signer objects
-##########################################################################
-def create_signer(file_location, config_profile, is_instance_principals, is_delegation_token, is_security_token):
-
-    # if instance principals authentications
-    if is_instance_principals:
-        try:
-            signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
-            config = {'region': signer.region, 'tenancy': signer.tenancy_id}
-            return config, signer
-
-        except Exception:
-            print("Error obtaining instance principals certificate, aborting")
-            raise SystemExit
-
-    # -----------------------------
-    # Delegation Token
-    # -----------------------------
-    elif is_delegation_token:
-
-        try:
-            # check if env variables OCI_CONFIG_FILE, OCI_CONFIG_PROFILE exist and use them
-            env_config_file = os.environ.get('OCI_CONFIG_FILE')
-            env_config_section = os.environ.get('OCI_CONFIG_PROFILE')
-
-            # check if file exist
-            if env_config_file is None or env_config_section is None:
-                print(
-                    "*** OCI_CONFIG_FILE and OCI_CONFIG_PROFILE env variables not found, abort. ***")
-                print("")
-                raise SystemExit
-
-            config = oci.config.from_file(env_config_file, env_config_section)
-            delegation_token_location = config["delegation_token_file"]
-
-            with open(delegation_token_location, 'r') as delegation_token_file:
-                delegation_token = delegation_token_file.read().strip()
-                # get signer from delegation token
-                signer = oci.auth.signers.InstancePrincipalsDelegationTokenSigner(
-                    delegation_token=delegation_token)
-
-                return config, signer
-
-        except KeyError:
-            print("* Key Error obtaining delegation_token_file")
-            raise SystemExit
-
-        except Exception:
-            raise
-    # ---------------------------------------------------------------------------
-    # Security Token - Credit to Dave Knot (https://github.com/dns-prefetch)
-    # ---------------------------------------------------------------------------
-    elif is_security_token:
-
-        try:
-            # Read the token file from the security_token_file parameter of the .config file
-            config = oci.config.from_file(
-                oci.config.DEFAULT_LOCATION,
-                (config_profile if config_profile else oci.config.DEFAULT_PROFILE)
-            )
-
-            token_file = config['security_token_file']
-            token = None
-            with open(token_file, 'r') as f:
-                token = f.read()
-
-            # Read the private key specified by the .config file.
-            private_key = oci.signer.load_private_key_from_file(config['key_file'])
-
-            signer = oci.auth.signers.SecurityTokenSigner(token, private_key)
-
-            return config, signer
-
-        except KeyError:
-            print("* Key Error obtaining security_token_file")
-            raise SystemExit
-
-        except Exception:
-            raise
-
-    # -----------------------------
-    # config file authentication
-    # -----------------------------
-    else:
-
-        try:
-            config = oci.config.from_file(
-                file_location if file_location else oci.config.DEFAULT_LOCATION,
-                (config_profile if config_profile else oci.config.DEFAULT_PROFILE)
-            )
-            signer = oci.signer.Signer(
-                tenancy=config["tenancy"],
-                user=config["user"],
-                fingerprint=config["fingerprint"],
-                private_key_file_location=config.get("key_file"),
-                pass_phrase=oci.config.get_config_value_or_default(
-                    config, "pass_phrase"),
-                private_key_content=config.get("key_content")
-            )
-            return config, signer
-        except Exception:
-            print(
-                f'** OCI Config was not found here : {oci.config.DEFAULT_LOCATION} or env varibles missing, aborting **')
-            raise SystemExit
-
 
 class DigiCertTLM:
 
@@ -164,9 +59,11 @@ class DigiCertTLM:
 
 class OCICertificates:
     def __init__(self, config, signer, day_to_expiry=30):
+        print(config)
         self.__oci_certificates = []
         self.__oci_certificates_near_expiration = []
-        self.__cert_key_time_max_datetime = start_datetime + datetime.timedelta(days=day_to_expiry)
+        self.__start_datetime = datetime.datetime.now().replace(tzinfo=pytz.UTC)
+        self.__cert_key_time_max_datetime = self.__start_datetime + datetime.timedelta(days=day_to_expiry)
         self.__regions = {}
         self.__config = config
         self.__signer = signer
@@ -188,7 +85,7 @@ class OCICertificates:
 
             # Getting Tenancy Data and Region data
             self.__tenancy = self.__identity.get_tenancy(
-                config["tenancy"]).data
+                self.__config["tenancy"]).data
             regions = self.__identity.list_region_subscriptions(
                 self.__tenancy.id).data
             for region in regions:
@@ -290,25 +187,6 @@ class OCICertificates:
 
 
 
-start_time = time.time()
-start_datetime = datetime.datetime.now().replace(tzinfo=pytz.UTC)
-
-# tlm_certs = DigiCertTLM()
-# tlm_managed_certs = tlm_certs.get_certificates_from_tlm()
-
-config, signer = create_signer("","ociateam",False,False,False)
-
-oci_certs = OCICertificates(config=config, signer=signer)
-# oci_managed_certs = oci_certs.get_oci_certificates()
-# oci_certificates_near_expiration = oci_certs.get_oci_certificates_near_expiration()
-oci_certs.add_new_oci_imported_certificate(
-    name="testing",
-    compartment_id="ocid1.compartment.oc1..aaaaaaaawlfypwpntj6ftt3kk2jacwbzyuv6tepfmbdwimizkkqo4s5xw25q",
-    cert_chain=cert_chain,
-    certificate_pem=cert_pem,
-    private_key_pem=private_pem
-)
-
 # for cert in oci_managed_certs:
 #     print(cert.name)
 
@@ -318,7 +196,4 @@ oci_certs.add_new_oci_imported_certificate(
 #             print(f'This OCI is managed in TLM.  The TLM serial number is: {oci_cert.freeform_tags[tlm_certs.get_get_oci_tag_name()]}')
 
 
-oci_certs.add_new_oci_certificate_bundle(compartment_id="ocid1.compartment.oc1..aaaaaaaawlfypwpntj6ftt3kk2jacwbzyuv6tepfmbdwimizkkqo4s5xw25q", 
-                                         name="HelloOCI")
 
-print("--- %s seconds ---" % (time.time() - start_time))
