@@ -5,4 +5,8 @@ runtime: python
 build_image: fnproject/python:3.9-dev
 run_image: fnproject/python:3.9
 entrypoint: /python/bin/fdk /function/func.py handler
-memory: 256
+memory: 1024
+timeout: 300
+config:
+  DAYS_TO_EXPIRY: ""
+  TOPIC_OCID: ocid1.onstopic.oc1.iad.amaaaaaac3adhhqa5mieafoijvtw2zjbuwavqc5vl4we4qra4vreq7suikea
