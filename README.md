@@ -8,7 +8,7 @@ OCI Certificate managed with DigiCert
 This function when triggered searches all regions in a tenancy for certificates nearing expiration.  The default is set to those certificates expiring within 30 days.
 
 ### Architecture
-![](images\Certificate-Expiry-Function.png)
+![](.\images\Certificate-Expiry-Function.png)
 
 ### Prerequisites
 
