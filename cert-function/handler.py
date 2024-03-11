@@ -4,9 +4,11 @@ import pytz
 import oci
 from read_certificate_files import Certificate_Files
 from oci_certificates import OCICertificates
+import argparse
 
 start_time = time.time()
 start_datetime = datetime.datetime.now().replace(tzinfo=pytz.UTC)
+
 
 ##########################################################################
 # Create signer for Authentication
@@ -118,38 +120,88 @@ def create_signer(file_location, config_profile, is_instance_principals, is_dele
 
 
 
-config, signer = create_signer("","ociateam",False,False,False)
+##########################################################################
+# Input: Command line arguments
+# Action : Set arguments and stores arguments
+# Returns: Command line arguments list
+##########################################################################
+def get_parser_arguments():
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--release',
+        required=True,
+
+        dest='release',
+        help="Release Directory to CSV file for comparison"
+    )
+    parser.add_argument(
+        '--issue',
+        dest='issue',
+        required=True,
+        help="Issue  CSV file for comparison")
+    parser.add_argument(
+        '--config',
+        dest='config',
+        required=True,
+        help="OCI Config file to run through")
+    
+    parser.add_argument(
+        '--collect_only',
+        action='store_true', 
+        default=False,
+        help="Collect Data but don't compare")
+    
+    result = parser.parse_args()
+    print(len(sys.argv))
+
+    if len(sys.argv) < 7:
+        parser.print_help()
+        exit()
+
+    print(result.collect_only)
+
+    return result.release,result.issue,result.config,result.collect_only
+
+
+config, signer = create_signer("","",False,False,False)
 
 oci_certs = OCICertificates(config=config, signer=signer)
-# oci_managed_certs = oci_certs.get_oci_certificates()
-# oci_certificates_near_expiration = oci_certs.get_oci_certificates_near_expiration()
+oci_managed_certs = oci_certs.get_oci_certificates()
+oci_cname = oci_certs.get_oci_certificates_with_cname("www.gnlmnm.com")
+print(oci_cname)
+oci_certificates_near_expiration = oci_certs.get_oci_certificates_near_expiration()
+print(oci_certificates_near_expiration)
+
+
+exit()
 
 certificates_files = Certificate_Files()
 certificate_json = certificates_files.get_certificates(directory='/Users/hammer/Documents/GitHub/oci-cert-digicert/cert-function/')
 print(certificate_json)
-response = oci_certs.add_new_oci_imported_certificate(
-    name="testing4",
-    compartment_id="ocid1.compartment.oc1..aaaaaaaawlfypwpntj6ftt3kk2jacwbzyuv6tepfmbdwimizkkqo4s5xw25q",
-    region="us-ashburn-1",
-    cert_chain=certificate_json['cert_chain'],
-    certificate_pem=certificate_json['certificate_pem'],
-    private_key_pem=certificate_json['private_key_pem']
-)
-print("*" * 80)
-print(response)
-print("*" * 80)
-certificate_id = 'ocid1.certificate.oc1.iad.amaaaaaac3adhhqasr5p5a3h4ita3ykc5bhrcz2xtiyklzpxwzv42kzqc3ea'
+# response = oci_certs.add_new_oci_imported_certificate(
+#     name="testing4",
+#     compartment_id="ocid1.compartment.oc1..aaaaaaaawlfypwpntj6ftt3kk2jacwbzyuv6tepfmbdwimizkkqo4s5xw25q",
+#     region="us-ashburn-1",
+#     cert_chain=certificate_json['cert_chain'],
+#     certificate_pem=certificate_json['certificate_pem'],
+#     private_key_pem=certificate_json['private_key_pem']
+# )
+# print("*" * 80)
+# print(response)
+# print("*" * 80)
+# certificate_id = 'ocid1.certificate.oc1.iad.amaaaaaac3adhhqasr5p5a3h4ita3ykc5bhrcz2xtiyklzpxwzv42kzqc3ea'
 
-response = oci_certs.update_oci_imported_certificate(
-    certificate_id=certificate_id,
-    region="us-ashburn-1",
-    cert_chain=certificate_json['cert_chain'],
-    certificate_pem=certificate_json['certificate_pem'],
-    private_key_pem=certificate_json['private_key_pem']
-)
-print("*" * 80)
-print(response)
-print("*" * 80)
+# response = oci_certs.update_oci_imported_certificate(
+#     certificate_id=certificate_id,
+#     region="us-ashburn-1",
+#     cert_chain=certificate_json['cert_chain'],
+#     certificate_pem=certificate_json['certificate_pem'],
+#     private_key_pem=certificate_json['private_key_pem']
+# )
+# print("*" * 80)
+# print(response)
+# print("*" * 80)
 
 
 print("--- %s seconds ---" % (time.time() - start_time))

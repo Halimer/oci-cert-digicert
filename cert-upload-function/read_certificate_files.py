@@ -13,6 +13,7 @@ class Certificate_Files:
     # returns: returns a list of all files in the directory
     ####################################################################################
     def __get_certs_in_directory(self,filepath):
+        
         files_list = [f for f in os.listdir(filepath) if f.endswith('.pem')]
         return files_list
     
@@ -21,7 +22,12 @@ class Certificate_Files:
         return cert_file
 
     def get_certificates(self, directory):
-        self.__directory = directory
+        if directory[-1] != "/":
+            print("no slash")
+            self.__directory = directory + "/"
+        else:
+            self.__directory = directory + "/"
+
         self.__cert_files = self.__get_certs_in_directory(self.__directory)
         for file in self.__cert_files:
             if 'cert' in file:

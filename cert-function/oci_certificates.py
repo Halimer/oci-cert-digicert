@@ -5,6 +5,7 @@ import pytz
 import os
 import requests
 from requests.exceptions import HTTPError
+from copy import copy
 
 class DigiCertTLM:
 
@@ -45,15 +46,15 @@ class DigiCertTLM:
 
 
 class OCICertificates:
-    def __init__(self, config, signer, day_to_expiry=30):
-        print(config)
+    def __init__(self, config, signer, days_to_expiry=30):
+        self.__cert_url = "https://cloud.oracle.com/security/certificates/certificate/"
         self.__oci_certificates = []
         self.__oci_certificates_near_expiration = []
         self.__start_datetime = datetime.datetime.now().replace(tzinfo=pytz.UTC)
-        self.__cert_key_time_max_datetime = self.__start_datetime + datetime.timedelta(days=day_to_expiry)
+        self.__cert_key_time_max_datetime = self.__start_datetime + datetime.timedelta(days=days_to_expiry)
         self.__regions = {}
-        self.__config = config
-        self.__signer = signer
+        self.__config = copy(config)
+        self.__signer = copy(signer)
         self.__create_regional_signers("")
         self.__certificates_read_certificates()
         self.__find_oci_certificates_near_expiration()
@@ -109,32 +110,35 @@ class OCICertificates:
     # Query All certificates in the tenancy
     ##########################################################################
     def __certificates_read_certificates(self):
-        for region_key, region_values in self.__regions.items():
-            certificates_data = oci.pagination.list_call_get_all_results(
-                    region_values['search_client'].search_resources,
-                    search_details=oci.resource_search.models.StructuredSearchDetails(
-                        query="query certificate resources return allAdditionalFields")
-                ).data
-            cert_compartments = {}
+        try:
+            for region_key, region_values in self.__regions.items():
+                certificates_data = oci.pagination.list_call_get_all_results(
+                        region_values['search_client'].search_resources,
+                        search_details=oci.resource_search.models.StructuredSearchDetails(
+                            query="query certificate resources return allAdditionalFields")
+                    ).data
+                cert_compartments = {}
 
-            for certificate in certificates_data:
-                cert_compartments[certificate.compartment_id] = certificate.compartment_id
+                for certificate in certificates_data:
+                    cert_compartments[certificate.compartment_id] = certificate.compartment_id
 
-            for compartment in cert_compartments:
-                certs = oci.pagination.list_call_get_all_results(
-                    region_values['certificate_client'].list_certificates,
-                    compartment_id=compartment).data
-                for cert in certs:
-                    record = oci.util.to_dict(cert)
-                    self.__oci_certificates.append(cert)
+                for compartment in cert_compartments:
+                    certs = oci.pagination.list_call_get_all_results(
+                        region_values['certificate_client'].list_certificates,
+                        compartment_id=compartment).data
+                    for cert in certs:
+                        self.__oci_certificates.append(cert)
+        except Exception as e:
+            pass
         print(f"Found a total of {len(self.__oci_certificates)} in OCI")
 
     def __find_oci_certificates_near_expiration(self):
         for cert in self.__oci_certificates:
             if cert.current_version_summary.validity and cert.current_version_summary.validity.time_of_validity_not_after <= self.__cert_key_time_max_datetime:
-                    self.__oci_certificates_near_expiration.append(cert)
-        print(f"Found {len(self.__oci_certificates_near_expiration)} OCI Certificates near expiry ")
-    
+                    region_id = cert.id.split(".")[3]
+                    region_name = self.__get_region_name_from_key(region_id)
+                    self.__oci_certificates_near_expiration.append(self.__cert_url + cert.id + "?region=" + region_name)
+
 
     def get_oci_certificates_with_cname(self, cname):
         results = []
@@ -146,6 +150,18 @@ class OCICertificates:
         print(f"Found {len(results)} with cname {cname}")
         return results    
     
+
+    ##########################################################################
+    # Returns a region name for a region key
+    # Takes: region key
+    ##########################################################################
+    def __get_region_name_from_key(self, region_key):
+        print("*" * 80)
+        print(region_key.upper())
+        for key, region_values in self.__regions.items():
+            if region_values['region_key'].upper() == region_key.upper() or region_values['region_name'].upper() == region_key.upper(): 
+                return region_values['region_name']
+
 
     ##########################################################################
     # Return All certificates in the tenancy

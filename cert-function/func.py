@@ -7,9 +7,7 @@ import time
 import datetime
 import pytz
 import oci
-from read_certificate_files import Certificate_Files
 from oci_certificates import OCICertificates
-import argparse
 from oci_topic import publish_message_to_topic
 
 start_time = time.time()
@@ -140,12 +138,6 @@ def handler(ctx, data: io.BytesIO=None):
     except (Exception, ValueError) as ex:
         logging.error('Error failed to get TOPIC OCID: ' + str(ex))
         raise
-
-    # myfiles = []
-    # for subdir, dirs, files in os.walk('./'):
-    #     for file in files:
-    #         logging.debug(file)
-    #         myfiles.append(file)
 
     try:
         config, signer = create_signer("./.config","ociateam",False,False,False)
