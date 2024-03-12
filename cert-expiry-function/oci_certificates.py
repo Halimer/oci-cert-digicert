@@ -46,6 +46,9 @@ class DigiCertTLM:
 
 
 class OCICertificates:
+    # Time Format
+    __time_format = "%Y-%m-%d %H:%M:%S"
+
     def __init__(self, config, signer, days_to_expiry=30):
         self.__cert_url = "https://cloud.oracle.com/security/certificates/certificate/"
         self.__oci_certificates = []
@@ -137,7 +140,8 @@ class OCICertificates:
             if cert.current_version_summary.validity and cert.current_version_summary.validity.time_of_validity_not_after <= self.__cert_key_time_max_datetime:
                     region_id = cert.id.split(".")[3]
                     region_name = self.__get_region_name_from_key(region_id)
-                    self.__oci_certificates_near_expiration.append(self.__cert_url + cert.id + "?region=" + region_name)
+                    self.__oci_certificates_near_expiration.append({"link" : self.__cert_url + cert.id + "?region=" + region_name,
+                                                                    "expiration_date" : str(cert.current_version_summary.validity.time_of_validity_not_after.strftime(self.__time_format))})
 
 
     def get_oci_certificates_with_cname(self, cname):
