@@ -156,8 +156,6 @@ class OCICertificates:
     # Takes: region key
     ##########################################################################
     def __get_region_name_from_key(self, region_key):
-        print("*" * 80)
-        print(region_key.upper())
         for key, region_values in self.__regions.items():
             if region_values['region_key'].upper() == region_key.upper() or region_values['region_name'].upper() == region_key.upper(): 
                 return region_values['region_name']
