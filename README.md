@@ -75,13 +75,15 @@ Review the following files in the current folder:
 ### Deploy the function
 
 * In Cloud Shell, create the oci function by runing the `fn init --runtime python <function-name>` this will create a generic function in a directory called `<function-name>`
-* Drag the `func.py` and `requirements.txt` into Cloud Shell. This will put them in the home directory
+* Drag the `func.py` , `requirements.txt`, `oci_certificates.py`, and `oci_topics.py` into Cloud Shell. This will put them in the home directory
 * Go into the function directory`cd <function-name>`
 * Remove the existing `func.py` and `requirements.txt` by running `rm func.py requirements.txt`
 * Copy the code into the function directory by running 
 ```
 cp ~/func.py .
-cp ~/requirements.py
+cp ~/oci_certificates.py .
+cp ~/oci_topics.py .
+cp ~/requirements.py .
 ```
 * Now run `fn deploy` command to build *this* function and its dependencies as a Docker image, push the image to the specified Docker registry, and deploy *this* function to Oracle Functions 
 in the application created earlier:
