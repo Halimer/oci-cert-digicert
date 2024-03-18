@@ -155,7 +155,7 @@ def handler(ctx, data: io.BytesIO=None):
 
     message_text = str(len(expiring_certs)) + " certificates near expiration.\n"
     for cert in expiring_certs:
-        message_text += cert['link'] + "- Expiration date is: " + str(cert["expiration_date"]) + " \n"
+        message_text += cert['link'] + " - Expiration date is: " + str(cert["expiration_date"]) + " \n"
     logging.debug(message_text)
     
     topic_message = publish_message_to_topic(config=config, signer=signer,
